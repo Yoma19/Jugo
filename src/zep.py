@@ -21,11 +21,13 @@ model = AutoModelForCausalLM.from_pretrained(
 # outputs = model.generate(**inputs, max_new_tokens=128)
 # print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 
+conversation = ""
+
 def generate_response(prompt):
     inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
     outputs = model.generate(
         **inputs,
-        max_new_tokens=128,
+        max_new_tokens=256,
         do_sample=True,
         temperature=0.7,
         top_p=0.9,
@@ -36,5 +38,9 @@ while True:
     user_input = input("You: ")
     if user_input.lower() in ["exit", "quit", "bye"]:
         break
-    response = generate_response(user_input)
-    print("Bot:", response)
+
+    conversation += f"User: {user_input}\nBot:"
+    response = generate_response(conversation)
+    latest_response = response.split("Bot:")[-1].strip()
+    print("Bot:", latest_response)
+    conversation += " " + latest_response
