@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Model Configuration
 # -----------------------------
 class DiscordBotModel:
-    def __init__(self, model_dir: str = "lora-chat-out"):
+    def __init__(self, model_dir: str = "lora-chat-out"):       # Update to newest version of Jugo LoRA model
         self.model_dir = model_dir
         self.base_model_name = "HuggingFaceH4/zephyr-7b-beta"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -196,12 +196,12 @@ def get_conversation_context(channel_id: int, user_id: int, new_message: str) ->
     temp_history = history + [f"User: {new_message}"]
     
     # Build the conversation string
-    conversation_string = "\n".join(temp_history)
+    """ conversation_string = "\n".join(temp_history)
     
     # Add "Bot:" at the end for the model to complete
-    formatted_prompt = f"{conversation_string}\nBot:"
+    formatted_prompt = f"{conversation_string}\nBot:" """
     
-    return formatted_prompt
+    return system_prompt + "\n".join(temp_history) + "\nBot:"
 
 @bot.event
 async def on_ready():

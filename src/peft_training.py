@@ -15,8 +15,8 @@ from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_tr
 # Settings
 # -----------------------------
 MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
-DATA_FILE = "shitpost_dataset.jsonl"
-OUTPUT_DIR = "lora-chat-out"
+DATA_FILE = "Jugo_Training_Data.jsonl"
+OUTPUT_DIR = "Jugo_LoRA_Model_1.1"      # Update every time you train
 USE_4BIT = True
 
 # -----------------------------
@@ -124,7 +124,7 @@ training_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
     per_device_train_batch_size=1,
     gradient_accumulation_steps=8,
-    num_train_epochs=3,
+    num_train_epochs=1,     # 1 epoch for occasional training, 3 for more serious
     learning_rate=2e-4,
     fp16=True,
     logging_steps=10,
