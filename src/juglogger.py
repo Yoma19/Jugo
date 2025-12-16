@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime
 
-LOG_FILE = "Jugo_Training_Data.jsonl"
+LOG_FILE = "Jugo_Training_Data_2.jsonl"
 MAX_FILE_SIZE_MB = 50  # auto-rotate at 50MB
 
 

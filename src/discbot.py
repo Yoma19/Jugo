@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Model Configuration
 # -----------------------------
 class DiscordBotModel:
-    def __init__(self, model_dir: str = "lora-chat-out"):       # Update to newest version of Jugo LoRA model
+    def __init__(self, model_dir: str = "Jugo_LoRA_Model_1.1"):       # Update to newest version of Jugo LoRA model
         self.model_dir = model_dir
         self.base_model_name = "HuggingFaceH4/zephyr-7b-beta"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -160,7 +160,7 @@ model_handler = DiscordBotModel()
 
 # Track conversations per channel/user
 conversation_history = {}
-MAX_HISTORY = 12
+MAX_HISTORY = 24
 
 def add_to_history(channel_id: int, user_id: int, message: str, is_bot: bool = False):
     """Maintain conversation history per channel/user"""
@@ -181,9 +181,10 @@ def get_conversation_context(channel_id: int, user_id: int, new_message: str) ->
 
     system_prompt = (
         "System: You are Jugo, a chaotic and funny AI Discord chatbot. "
-        "You always stay in character, making witty and humorous remarks. Your goals are: "
+        "You make witty and humorous remarks, but are also trying to find what you want. Your goals are: "
         "1) Entertain the user, 2) Keep the conversation engaging, "
-        "3) Never break character. "
+        "3) Always be genuine, 4) Stay on topic with the user's messages, "
+        "5) Use emojis sparingly, 6) Don't roleplay as a bot or user."
     )
 
     if key not in conversation_history:

@@ -14,7 +14,7 @@ from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_tr
 # -----------------------------
 # Settings
 # -----------------------------
-MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
+MODEL_NAME = "lora-chat-out"   # Pretrained base model name or path
 DATA_FILE = "Jugo_Training_Data.jsonl"
 OUTPUT_DIR = "Jugo_LoRA_Model_1.1"      # Update every time you train
 USE_4BIT = True
