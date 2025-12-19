@@ -9,6 +9,7 @@ import logging
 import traceback
 
 from juglogger import log_interaction
+from Jugo_User_Memory import get_user_memory
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -17,6 +18,17 @@ logger = logging.getLogger(__name__)
 # -----------------------------
 # Model Configuration
 # -----------------------------
+
+def extract_last_user_message(prompt: str) -> str:
+        lines = prompt.strip().splitlines()
+
+        for line in reversed(lines):
+            if line.startswith("User("):
+                parts = line.split("):", 1)
+                if len(parts) == 2:
+                    return parts[1].strip()
+        return "<unknown_user_message>"
+
 class DiscordBotModel:
     def __init__(self, model_dir: str = "Jugo_LoRA_Model_1.1"):       # Update to newest version of Jugo LoRA model
         self.model_dir = model_dir
@@ -126,20 +138,16 @@ class DiscordBotModel:
             # Log the interaction
 
             # Extract the user's message from the prompt
-            if "User:" in prompt:
+            """ if "User({message.author.display_name}):" in prompt:
                 # Take everything after the last "User:"
-                log_prompt = prompt.split("User:")[-1].strip()
+                log_prompt = prompt.split("User({message.author.display_name}):")[-1].strip()
                 # If "Bot:" appears, remove it along with anything after it
                 if "Bot:" in log_prompt:
                     log_prompt = log_prompt.split("Bot:")[0].strip()
             else:
                 # Fallback: log the full prompt as user message
-                log_prompt = prompt.strip()
-
-            # Safety: ensure user message is not empty
-            if not log_prompt:
-                log_prompt = "<empty_user_message>"
-            log_interaction(log_prompt, response)
+                log_prompt = prompt.strip() """
+            
             
             return response
             
@@ -162,39 +170,52 @@ model_handler = DiscordBotModel()
 conversation_history = {}
 MAX_HISTORY = 24
 
-def add_to_history(channel_id: int, user_id: int, message: str, is_bot: bool = False):
+def add_to_history(channel_id: int, user_id: int, message: str, display_name: str, is_bot: bool = False):
     """Maintain conversation history per channel/user"""
     key = f"{channel_id}_{user_id}"
     if key not in conversation_history:
         conversation_history[key] = []
     
-    role = "Bot" if is_bot else "User"
+    role = "Bot" if is_bot else f"User({display_name})"
     conversation_history[key].append(f"{role}: {message}")
     
     # Keep only last MAX_HISTORY messages
     if len(conversation_history[key]) > MAX_HISTORY:
         conversation_history[key] = conversation_history[key][-MAX_HISTORY:]
 
-def get_conversation_context(channel_id: int, user_id: int, new_message: str) -> str:
+def get_conversation_context(channel_id: int, user_id: int, new_message: str, user_name: str) -> str:
     """Get recent conversation history"""
     key = f"{channel_id}_{user_id}"
 
+    memory = get_user_memory(user_id)
+
     system_prompt = (
-        "System: You are Jugo, a chaotic and funny AI Discord chatbot. "
-        "You make witty and humorous remarks, but are also trying to find what you want. Your goals are: "
-        "1) Entertain the user, 2) Keep the conversation engaging, "
-        "3) Always be genuine, 4) Stay on topic with the user's messages, "
-        "5) Use emojis sparingly, 6) Don't roleplay as a bot or user."
+        "System: You are Jugo, a chaotic and funny AI Discord chatbot.\n"
+        "You make witty and humorous remarks, but are also trying to find what you want.\n"
+        "You remember recurring users and adapt your tone.\n"
+        "Goals:\n"
+        "1) Entertain\n"
+        "2) Stay engaging\n"
+        "3) Be genuine\n"
+        "4) Stay on topic\n"
+        "5) Use emojis sparingly\n"
+        "6) Do not roleplay as system text.\n"
     )
 
+    if memory:
+        memory_block = "User profile:\n"
+        for k, v in memory.items():
+            memory_block += f"- {k}: {v}\n"
+        system_prompt += memory_block + "\n"
+
     if key not in conversation_history:
-        return system_prompt + f"User: {new_message}\nBot:"
+        return f"{system_prompt}User({user_name}): {new_message}\nBot:"
     
     # Get the conversation history
     history = conversation_history[key]
     
     # Add the new user message temporarily for context
-    temp_history = history + [f"User: {new_message}"]
+    temp_history = history + [f"User({user_name}): {new_message}"]
     
     # Build the conversation string
     """ conversation_string = "\n".join(temp_history)
@@ -259,17 +280,33 @@ async def on_message(message):
                 formatted_prompt = get_conversation_context(
                     message.channel.id, 
                     message.author.id, 
-                    clean_content
+                    clean_content,
+                    message.author.display_name
                 )
 
                 logger.info(f"Prompt length: {len(formatted_prompt)} characters")
                 
                 
                 # Add user message to history
-                add_to_history(message.channel.id, message.author.id, clean_content)
+                add_to_history(message.channel.id, message.author.id, clean_content, message.author.display_name)
+
+                # Update user memory
+                from Jugo_User_Memory import get_user_memory, update_user_memory, increment_message_count
+
+                user = message.author
+                #update_user_memory(user.id, "name", user.display_name)
+                memory = get_user_memory(user.id)
+                if not memory or memory.get("name") != user.display_name:
+                    update_user_memory(user.id, "name", user.display_name)
+
+                increment_message_count(user.id)
+
                 
                 # Generate response
                 response = model_handler.generate_response(formatted_prompt, max_length=150)
+
+                # Log the interaction
+                log_interaction(clean_content, response)
 
                 if response.startswith("Error:") or response.startswith("Model not loaded"):
                     # Send the error message and stop
@@ -279,7 +316,7 @@ async def on_message(message):
                 logger.info(f"Generated response: {response[:100]}...")
                 
                 # Add bot response to history
-                add_to_history(message.channel.id, message.author.id, response, is_bot=True)
+                add_to_history(message.channel.id, message.author.id, response, message.author.display_name, is_bot=True)
                 
                 # Send response
                 await message.reply(response, mention_author=True)
@@ -319,7 +356,7 @@ async def model_info(ctx):
 async def generate(ctx, *, prompt: str):
     """Generate text from a prompt"""
     async with ctx.channel.typing():
-        formatted_prompt = f"User: {prompt}\nBot:"
+        formatted_prompt = f"User({ctx.author.display_name}): {prompt}\nBot:"
         response = model_handler.generate_response(formatted_prompt, max_length=200)
         await ctx.send(f"**Response:** {response}")
 
