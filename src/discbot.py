@@ -170,45 +170,62 @@ model_handler = DiscordBotModel()
 conversation_history = {}
 MAX_HISTORY = 24
 
-def add_to_history(channel_id: int, user_id: int, message: str, display_name: str, is_bot: bool = False):
+def add_to_history(channel_id: int, user_id: int, message: str, is_bot: bool = False):
     """Maintain conversation history per channel/user"""
     key = f"{channel_id}_{user_id}"
     if key not in conversation_history:
         conversation_history[key] = []
     
-    role = "Bot" if is_bot else f"User({display_name})"
-    conversation_history[key].append(f"{role}: {message}")
+    prefix = "Your reply" if is_bot else "User said"
+    conversation_history[key].append(f"{prefix}: {message}")
     
     # Keep only last MAX_HISTORY messages
     if len(conversation_history[key]) > MAX_HISTORY:
         conversation_history[key] = conversation_history[key][-MAX_HISTORY:]
 
-def get_conversation_context(channel_id: int, user_id: int, new_message: str, user_name: str) -> str:
+from Jugo_User_Memory import get_preferred_name
+def get_conversation_context(channel_id: int, user_id: int, guild_id: int, new_message: str, user_name: str) -> str:
     """Get recent conversation history"""
     key = f"{channel_id}_{user_id}"
 
     memory = get_user_memory(user_id)
-
+    
+    preferred_name = get_preferred_name(user_id, guild_id) or "this user"
     system_prompt = (
-        "System: You are Jugo, a chaotic and funny AI Discord chatbot.\n"
-        "You make witty and humorous remarks, but are also trying to find what you want.\n"
+        "You are Jugo, a chaotic and funny AI Discord chatbot.\n"
+        "You reply with one message only.\n"
         "You remember recurring users and adapt your tone.\n"
-        "Goals:\n"
-        "1) Entertain\n"
-        "2) Stay engaging\n"
-        "3) Be genuine\n"
-        "4) Stay on topic\n"
-        "5) Use emojis sparingly\n"
-        "6) Do not roleplay as system text.\n"
+        "You never speak for other users.\n"
+        "You never write system messages.\n"
+        "You never use role labels like 'User' or 'Bot' in your replies.\n"
+        "Output ONLY the reply text.\n"
+        f"The person you are talking to is '{preferred_name}'.\n"
+        "You may refer to them by this name naturally in conversation.\n"
     )
 
     if memory:
-        memory_block = "User profile:\n"
+        memory_block = "Known user info:\n"
         for k, v in memory.items():
             memory_block += f"- {k}: {v}\n"
-        system_prompt += memory_block + "\n"
+        system_prompt += "\n"
 
-    if key not in conversation_history:
+    conversation_block = ""
+    if key in conversation_history:
+        conversation_block = "Recent conversation (for context only):\n"
+        conversation_block += "\n".join(conversation_history[key])
+        conversation_block += "\n\n"
+
+    prompt = (
+        system_prompt
+        + conversation_block
+        + "Latest user message:\n"
+        + f"\"{new_message}\"\n\n"
+        + "Jugo replies:\n"
+    )
+
+    return prompt
+
+    """ if key not in conversation_history:
         return f"{system_prompt}User({user_name}): {new_message}\nBot:"
     
     # Get the conversation history
@@ -218,12 +235,7 @@ def get_conversation_context(channel_id: int, user_id: int, new_message: str, us
     temp_history = history + [f"User({user_name}): {new_message}"]
     
     # Build the conversation string
-    """ conversation_string = "\n".join(temp_history)
-    
-    # Add "Bot:" at the end for the model to complete
-    formatted_prompt = f"{conversation_string}\nBot:" """
-    
-    return system_prompt + "\n".join(temp_history) + "\nBot:"
+    return system_prompt + "\n".join(temp_history) + "\nBot:" """
 
 @bot.event
 async def on_ready():
@@ -238,8 +250,10 @@ async def on_ready():
     else:
         logger.error("Failed to load model!")
 
+
 @bot.event
 async def on_message(message):
+
     """Handle incoming messages"""
     # Don't respond to ourselves
     if message.author == bot.user:
@@ -280,6 +294,7 @@ async def on_message(message):
                 formatted_prompt = get_conversation_context(
                     message.channel.id, 
                     message.author.id, 
+                    message.guild.id if message.guild else "DM",
                     clean_content,
                     message.author.display_name
                 )
@@ -288,18 +303,24 @@ async def on_message(message):
                 
                 
                 # Add user message to history
-                add_to_history(message.channel.id, message.author.id, clean_content, message.author.display_name)
+                add_to_history(message.channel.id, message.author.id, clean_content)
 
                 # Update user memory
-                from Jugo_User_Memory import get_user_memory, update_user_memory, increment_message_count
+                from Jugo_User_Memory import get_user_memory, update_user_memory, increment_message_count, update_user_memory, increment_message_count, get_preferred_name
 
                 user = message.author
-                #update_user_memory(user.id, "name", user.display_name)
-                memory = get_user_memory(user.id)
-                if not memory or memory.get("name") != user.display_name:
-                    update_user_memory(user.id, "name", user.display_name)
+                guild_id = message.guild.id if message.guild else "DM"
+
+                update_user_memory(
+                    user_id=user.id,
+                    guild_id=guild_id,
+                    display_name=user.display_name,
+                    global_name=user.name,
+                )
 
                 increment_message_count(user.id)
+
+                preferred_name = get_preferred_name(user.id, guild_id)
 
                 
                 # Generate response
@@ -316,7 +337,7 @@ async def on_message(message):
                 logger.info(f"Generated response: {response[:100]}...")
                 
                 # Add bot response to history
-                add_to_history(message.channel.id, message.author.id, response, message.author.display_name, is_bot=True)
+                add_to_history(message.channel.id, message.author.id, response, is_bot=True)
                 
                 # Send response
                 await message.reply(response, mention_author=True)

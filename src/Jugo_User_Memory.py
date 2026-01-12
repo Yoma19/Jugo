@@ -2,72 +2,119 @@ import json
 import os
 from datetime import datetime
 
-MEMORY_FILE = "Jugo_user_memory.json"
+MEMORY_FILE = "Jugo_user_memory_v2.json"
 
 
+# -----------------------------
+# Load / Save Utilities
+# -----------------------------
 def load_memory():
     if not os.path.exists(MEMORY_FILE):
         return {}
-    with open(MEMORY_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+
+    try:
+        with open(MEMORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        print("[WARN] user_memory.json was invalid. Resetting.")
+        return {}
 
 
 def save_memory(memory):
     with open(MEMORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(memory, f, indent=2)
+        json.dump(memory, f, indent=4, ensure_ascii=False)
 
 
-def get_user_memory(user_id: int):
+# -----------------------------
+# Core: Update user memory
+# -----------------------------
+def update_user_memory(user_id, guild_id, display_name, global_name=None):
+    """
+    Store per-user memory:
+      - user_id (stable identity)
+      - aliases (name per guild)
+      - global_name (account name)
+      - message_count
+      - last_seen timestamp
+    """
     memory = load_memory()
-    return memory.get(str(user_id), {})
 
-
-def update_user_memory(user_id: int, key: str, value):
-    memory = load_memory()
     uid = str(user_id)
+    gid = str(guild_id)
 
     if uid not in memory:
         memory[uid] = {
-            "first_seen": datetime.utcnow().isoformat() + "Z",
+            "global_name": global_name or display_name,
+            "aliases": {},
             "message_count": 0,
-            "notes": []
+            "last_seen": None,
         }
 
-    memory[uid][key] = value
-    memory[uid]["last_seen"] = datetime.utcnow().isoformat() + "Z"
+    # Always update the alias for the specific guild
+    memory[uid]["aliases"][gid] = display_name
+
+    # Only update global_name if missing (avoid overwriting)
+    if global_name and not memory[uid].get("global_name"):
+        memory[uid]["global_name"] = global_name
+
+    # Update last seen timestamp
+    memory[uid]["last_seen"] = datetime.utcnow().isoformat()
 
     save_memory(memory)
 
 
-def increment_message_count(user_id: int):
+# -----------------------------
+# Message Count
+# -----------------------------
+def increment_message_count(user_id):
     memory = load_memory()
     uid = str(user_id)
 
     if uid not in memory:
         memory[uid] = {
-            "first_seen": datetime.utcnow().isoformat() + "Z",
+            "global_name": None,
+            "aliases": {},
             "message_count": 0,
-            "notes": []
+            "last_seen": None,
         }
 
     memory[uid]["message_count"] += 1
-    memory[uid]["last_seen"] = datetime.utcnow().isoformat() + "Z"
+    memory[uid]["last_seen"] = datetime.utcnow().isoformat()
 
     save_memory(memory)
 
 
-def add_user_note(user_id: int, note: str):
+# -----------------------------
+# Fetch preferred name
+# -----------------------------
+def get_preferred_name(user_id, guild_id):
+    """
+    Choose the best possible name:
+      1. Alias specific to this guild
+      2. Global username
+      3. None (if not in memory yet)
+    """
     memory = load_memory()
     uid = str(user_id)
+    gid = str(guild_id)
 
     if uid not in memory:
-        memory[uid] = {
-            "first_seen": datetime.utcnow().isoformat() + "Z",
-            "message_count": 0,
-            "notes": []
-        }
+        return None
 
-    if note not in memory[uid]["notes"]:
-        memory[uid]["notes"].append(note)
+    user = memory[uid]
 
-    save_memory(memory)
+    # Priority 1: Name used in this server
+    if "aliases" in user and gid in user["aliases"]:
+        return user["aliases"][gid]
+
+    # Priority 2: Global name (Discord username)
+    return user.get("global_name")
+
+
+# -----------------------------
+# Debug helper (optional)
+# -----------------------------
+def get_user_memory(user_id):
+    """Returns the full memory entry for debugging/logging."""
+    memory = load_memory()
+    return memory.get(str(user_id), None)
