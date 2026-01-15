@@ -4,18 +4,19 @@
         "aliases": {
             "1007028513515245709": "Yoma",
             "1140475479695052832": "Yoma",
-            "945790761021083772": "Yoma"
+            "945790761021083772": "Yoma",
+            "1271568351222693908": "Yoma"
         },
-        "message_count": 33,
-        "last_seen": "2026-01-12T19:24:46.716136"
+        "message_count": 47,
+        "last_seen": "2026-01-15T06:31:29.690958"
     },
     "1028517474515308595": {
         "global_name": "mendoo999",
         "aliases": {
             "945790761021083772": "Chop"
         },
-        "message_count": 4,
-        "last_seen": "2026-01-11T09:39:11.704181"
+        "message_count": 6,
+        "last_seen": "2026-01-13T02:16:06.997303"
     },
     "788188508199059467": {
         "global_name": "king_groyous",
@@ -30,8 +31,8 @@
         "aliases": {
             "945790761021083772": "Happy_Lad8"
         },
-        "message_count": 1,
-        "last_seen": "2026-01-08T02:39:34.459099"
+        "message_count": 2,
+        "last_seen": "2026-01-13T21:32:12.906205"
     },
     "758350616434442241": {
         "global_name": "bansai__",
@@ -40,5 +41,30 @@
         },
         "message_count": 4,
         "last_seen": "2026-01-11T09:53:02.230837"
+    },
+    "853497117858594816": {
+        "global_name": "deadboymiko",
+        "aliases": {
+            "1140475479695052832": "slime bucket",
+            "945790761021083772": "☆ miko"
+        },
+        "message_count": 25,
+        "last_seen": "2026-01-15T08:11:11.283242"
+    },
+    "1271599030668886017": {
+        "global_name": "futureisnow0206_95624",
+        "aliases": {
+            "1271568351222693908": "Futureisnow"
+        },
+        "message_count": 1,
+        "last_seen": "2026-01-15T04:04:40.846369"
+    },
+    "1271567810740486281": {
+        "global_name": "richnoiz",
+        "aliases": {
+            "1271568351222693908": "RichNoiz"
+        },
+        "message_count": 2,
+        "last_seen": "2026-01-15T04:20:39.168155"
     }
 }

@@ -30,7 +30,7 @@ def extract_last_user_message(prompt: str) -> str:
         return "<unknown_user_message>"
 
 class DiscordBotModel:
-    def __init__(self, model_dir: str = "Jugo_LoRA_Model_1.1"):       # Update to newest version of Jugo LoRA model
+    def __init__(self, model_dir: str = "Jugo_LoRA_Model_1.2.1"):       # Update to newest version of Jugo LoRA model
         self.model_dir = model_dir
         self.base_model_name = "HuggingFaceH4/zephyr-7b-beta"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
